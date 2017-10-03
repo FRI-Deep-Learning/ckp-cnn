@@ -3,8 +3,9 @@ from tqdm import tqdm
 import numpy as np
 from keras.utils import np_utils
 from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D, Dropout
 from keras.layers import Dense, Activation, Flatten
+from keras.optimizers import SGD
 from keras import backend as K
 
 # from https://stackoverflow.com/questions/43137288/how-to-determine-needed-memory-of-keras-model
@@ -31,9 +32,9 @@ def get_model_memory_usage(batch_size, model):
 train_file_name = "v1_training.dat"
 test_file_name = "v1_testing.dat"
 
-batch_size = 50
+batch_size = 128
 num_classes = 123
-num_epoch = 100
+num_epoch = 30
 
 img_rows = 64
 img_cols = 64
@@ -145,6 +146,7 @@ model.add(Activation("relu"))
 
 model.add(Flatten())
 model.add(Dense(num_classes))
+model.add(Dropout(0.5))
 
 model.add(Activation("softmax"))
 
@@ -153,8 +155,10 @@ print(preds.shape)
 
 # Compile the model and put data between 0 and 1
 
+sgd = SGD(lr=0.01, momentum=0.9, decay=0.001)
+
 model.compile(loss='categorical_crossentropy',
-              optimizer='sgd',
+              optimizer=sgd,
               metrics=['accuracy'])
 
 print("Memory usage:", get_model_memory_usage(batch_size, model), "GB")
