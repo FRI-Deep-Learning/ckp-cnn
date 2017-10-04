@@ -6,7 +6,14 @@ from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dropout
 from keras.layers import Dense, Activation, Flatten
 from keras.optimizers import SGD
+from keras.callbacks import ModelCheckpoint
 from keras import backend as K
+import uuid
+
+# We want to distinguish models.
+# Thus, every model is given a unique id.
+
+model_uuid = uuid.uuid1()
 
 # from https://stackoverflow.com/questions/43137288/how-to-determine-needed-memory-of-keras-model
 def get_model_memory_usage(batch_size, model):
@@ -114,41 +121,41 @@ y_test  = np_utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
 
-model.add(Conv2D(64, (3, 3), input_shape=(64, 64, 1)))
-model.add(Activation("relu"))
+model.add(Conv2D(64, (3, 3), input_shape=(64, 64, 1), name="c1"))
+model.add(Activation("relu", name="a1"))
 
-model.add(Conv2D(128, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(128, (3, 3), name="c2"))
+model.add(Activation("relu", name="a2"))
 
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(MaxPooling2D(pool_size=(2,2), name="p1"))
 
-model.add(Conv2D(256, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(256, (3, 3), name="c3"))
+model.add(Activation("relu", name="a3"))
 
-model.add(Conv2D(256, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(256, (3, 3), name="c4"))
+model.add(Activation("relu", name="a4"))
 
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(MaxPooling2D(pool_size=(2,2), name="p2"))
 
-model.add(Conv2D(512, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(512, (3, 3), name="c5"))
+model.add(Activation("relu", name="a5"))
 
-model.add(Conv2D(512, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(512, (3, 3), name="c6"))
+model.add(Activation("relu", name="a6"))
 
-model.add(Conv2D(512, (3, 3)))
-model.add(Activation("relu"))
+model.add(Conv2D(512, (3, 3), name="c7"))
+model.add(Activation("relu", name="a7"))
 
-model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(MaxPooling2D(pool_size=(2,2), name="p3"))
 
-model.add(Conv2D(4096, (1, 1)))
-model.add(Activation("relu"))
+model.add(Conv2D(4096, (1, 1), name="fc1"))
+model.add(Activation("relu", name="a8"))
 
 model.add(Flatten())
-model.add(Dense(num_classes))
+model.add(Dense(num_classes, name="fc2"))
 model.add(Dropout(0.5))
 
-model.add(Activation("softmax"))
+model.add(Activation("softmax", name="sm1"))
 
 preds = model.predict(np.ones((1, 64, 64, 1)))
 print(preds.shape)
@@ -175,6 +182,5 @@ model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=num_epoch,
               validation_data=(x_test, y_test),
-              shuffle=True)
-
-model.save("finished_model.hdf5")
+              shuffle=True,
+              callbacks=[ModelCheckpoint("best_model_{}.h5".format(str(model_uuid)), save_best_only=True)])
