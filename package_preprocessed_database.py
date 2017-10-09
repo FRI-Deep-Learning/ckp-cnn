@@ -27,9 +27,9 @@ for subject in tqdm(subjects):
                 subject_image_map[subject] += 1
 
 num_images = len(image_files)
-out.write(umsgpack.packb(num_images))
+umsgpack.pack(num_images, out)
 
-out.write(umsgpack.packb(subject_image_map))
+umsgpack.pack(subject_image_map, out)
 
 print("> Packaging images...")
 for (subject, file) in tqdm(image_files):
@@ -37,4 +37,4 @@ for (subject, file) in tqdm(image_files):
     mean_image += img.astype(np.float32) / num_images
     out.write(umsgpack.packb((subject, img.tolist())))
 
-out.write(umsgpack.packb(mean_image.tolist()))
+umsgpack.pack(mean_image.tolist(), out)
