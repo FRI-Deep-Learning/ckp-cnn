@@ -14,7 +14,7 @@ from tqdm import tqdm
 subject_map = {}
 id_counter = 0
 
-in_file = gzip.open("preprocessed_db.gz", "rb")
+in_file = gzip.open("occluded_db.gz", "rb")
 
 num_images = umsgpack.unpack(in_file)
 

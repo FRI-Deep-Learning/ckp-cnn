@@ -27,14 +27,13 @@ for (folder,num) in tqdm(map.items()):
 		
 		(subject, image) = umsgpack.unpack(file)
 		output_file.write(umsgpack.packb((subject,image)))
-		im = np.asarray(image, dtype=np.uint8)
-		im = np.resize(im, (64,64,1))	
+		im = np.asarray(image)
 		#copies image so there are two separate images - one that contains upper occlusion & one that contains lower occlusion
 		im2 = im.copy()
 		#randomly choose dimensions ranging from 10-14x36-42
 		h= random.randint(10,15)
 		w= random.randint(36,43)
-		rect = np.zeros((h,w), dtype=np.uint8)
+		rect = np.zeros((h,w))
 		#randomly chooses a type of noise
 		noise_type = random.randint(0,2)
 		if noise_type == 0:
@@ -45,7 +44,6 @@ for (folder,num) in tqdm(map.items()):
 			#salt & pepper noise
 			cv2.randu(rect,0,255)
 		
-		rect = rect.reshape(rect.shape+(1,))
 		#places occluded rectangle on image in random location centered on the eye region 
 		rx = random.randint(-3,4)
 		ry = random.randint(-1,2)
