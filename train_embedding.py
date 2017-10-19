@@ -5,9 +5,9 @@ if len(sys.argv) != 3:
     exit(1)
 
 from keras.models import load_model
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Activation, Conv2D
 from keras.optimizers import SGD
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 import tensorflow as tf
 import uuid
 from tqdm import tqdm
@@ -16,8 +16,8 @@ import umsgpack
 import random
 import numpy as np
 
+embedding_length = 1000
 num_epoch = 20
-batch_size = 129
 
 L = int(sys.argv[1])
 
@@ -80,7 +80,34 @@ for subject in tqdm(subject_anchor_map):
 
 input_file.close()
 del subject_anchor_map
-print("> Triplet Total:", len(total_triplets))
+
+total_triplet_count = int(len(total_triplets) / 3)
+print("> Triplet Total:", total_triplet_count)
+
+# bs_multiples = []
+
+# for i in range(3, 130):
+#     if total_triplet_count % i == 0 and i % 3 == 0:
+#         bs_multiples.append(i)
+
+# print("> Appropriate batch sizes:", bs_multiples)
+
+# batch_size = int(input("==[]== Enter batch size: "))
+
+# if batch_size not in bs_multiples:
+#     print("[!] Invalid batch size!")
+#     exit(1)
+
+batch_size = 63
+
+extra_triplets = total_triplet_count % batch_size
+print("> Discarding", extra_triplets, "extra triplets...")
+
+for i in range(0, extra_triplets*3):
+    total_triplets.pop()
+
+total_triplet_count = len(total_triplets) / 3
+print("> Final triplet count:", total_triplet_count)
 
 print("> Loading model...")
 model = load_model(sys.argv[2])
@@ -90,19 +117,32 @@ for layer in model.layers:
     layer.trainable = False
 
 model.pop() # Removes softmax layer
+model.pop() # Removes dropout layer
 model.pop() # Removes last fully-connected layer
 
-model.add(Dense(1024, name="embedding"))
+model.add(Dense(embedding_length, name="embedding"))
 model.add(Activation("softmax", name="softmax"))
 
 alpha = 0.2
 
 def triplet_loss(y_true, y_pred):
+    y_pred.set_shape([batch_size, embedding_length])
+
     a = y_pred[0::3]
     p = y_pred[1::3]
     n = y_pred[2::3]
 
-    losses = tf.maximum(0.0, tf.reduce_sum((a - p)**2, 1) - tf.reduce_sum((a - n)**2, 1) + 0.2)
+    print("a:", a.shape)
+    print("p:", p.shape)
+    print("n:", n.shape)
+
+    psum = tf.reduce_sum((a - p)**2, 1)
+    asum = tf.reduce_sum((a - n)**2, 1)
+
+    print("psum:", psum.shape)
+    print("asum:", asum.shape)
+
+    losses = tf.maximum(0.0, psum - asum + tf.fill(psum.shape, alpha))
 
     return tf.reduce_sum(losses)
 
@@ -134,13 +174,16 @@ def get_model_memory_usage(bs, model):
 
 model.summary()
 
-print("Memory usage:", get_model_memory_usage(batch_size, model), "GB")
-print("Press enter if that's okay. If not, type NO and then press enter.")
-if input() == "NO":
+print("> Memory usage:", get_model_memory_usage(batch_size, model), "GB")
+print("> Press enter if that's okay. If not, type NO and then press enter.")
+if input("==[]== Continue? ") == "NO":
     exit()
 
 model.fit(np.array(total_triplets)[:,:,:,None], np.zeros([len(total_triplets), 1024]),
               batch_size=batch_size,
               epochs=num_epoch,
               shuffle=True,
-              callbacks=[ModelCheckpoint("best_triplet_model_{}.h5".format(str(model_uuid)), save_best_only=True)])
+              callbacks=[
+                  ModelCheckpoint("best_triplet_model_{}.h5".format(str(model_uuid)), save_best_only=True),
+                  TensorBoard(write_grads=True)
+              ])
