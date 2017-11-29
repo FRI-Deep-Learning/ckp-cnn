@@ -3,6 +3,8 @@ import numpy as np
 import random
 import sys
 
+DISPLAY_SIZE = 200
+
 args = sys.argv[1:]
 
 if len(args) < 1:
@@ -67,14 +69,18 @@ def capture_image():
     while True:
         _, frame = camera.read()
         cv2.imshow("feed", frame)
-        if cv2.waitKey(1) == 13: # Enter key
+        key = cv2.waitKey(1)
+        if key == 13: # Enter key
             cv2.destroyWindow("feed")
             del(camera)
             return frame
+        elif key == 27: # Escape key
+            exit(0)
 
 def display_image(image):
     cv2.imshow("image", image)
-    cv2.waitKey(0)
+    if cv2.waitKey(0) == 27: # Escape key
+        exit(0)
 
 def crop_to_face(img):
     cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
@@ -85,46 +91,59 @@ def crop_to_face(img):
     faces = cascade.detectMultiScale(miniframe)
 
     if len(faces) < 1:
-        print("FAILED ON IMAGE")
-        exit(1)
+        print("NO FACE!!")
+        return None
+
+    print("num faces:", len(faces))
+
+    largest_face_idx = 0
+
+    for idx, face in enumerate(faces):
+        if face[2]*face[3] > faces[largest_face_idx][2]*faces[largest_face_idx][3]:
+            largest_face_idx = idx
     
-    x, y, w, h = [ v for v in faces[0] ]
+    x, y, w, h = [ v for v in faces[largest_face_idx] ]
     cv2.rectangle(img, (x,y), (x+w,y+h), (255,255,255))
 
     return img[y:y+h, x:x+w]
 
-img = capture_image()
-cv2.imwrite("test.png", img)
 
-display_image(img)
+while True:
+    img = capture_image()
+    cv2.imwrite("test.png", img)
 
-img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-display_image(img)
+    if crop_to_face(img.copy()) is None:
+        continue
 
-img = crop_to_face(img)
-display_image(img)
+    display_image(img)
 
-img = cv2.resize(img, (64, 64))
-display_image(cv2.resize(img, (200, 200)))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    display_image(img)
 
-(im1, im2, im3, im4) = occlude_image(img)
+    img = crop_to_face(img)
+    display_image(img)
 
-def display_images(im1, im2, im3, im4):
-    im1 = cv2.resize(im1, (200, 200))
-    im2 = cv2.resize(im2, (200, 200))
-    im3 = cv2.resize(im3, (200, 200))
-    im4 = cv2.resize(im4, (200, 200))
+    img = cv2.resize(img, (64, 64))
+    display_image(cv2.resize(img, (DISPLAY_SIZE, DISPLAY_SIZE)))
 
-    image = np.zeros((400, 400), dtype="uint8")
+    (im1, im2, im3, im4) = occlude_image(img)
 
-    image[200:400, 0:200] = im1
-    image[200:400, 200:400] = im2
-    image[0:200, 0:200] = im3
-    image[0:200, 200:400] = im4
+    def display_images(im1, im2, im3, im4):
+        im1 = cv2.resize(im1, (DISPLAY_SIZE, DISPLAY_SIZE))
+        im2 = cv2.resize(im2, (DISPLAY_SIZE, DISPLAY_SIZE))
+        im3 = cv2.resize(im3, (DISPLAY_SIZE, DISPLAY_SIZE))
+        im4 = cv2.resize(im4, (DISPLAY_SIZE, DISPLAY_SIZE))
 
-    cv2.imshow("image", image)
-    cv2.waitKey(0)
+        image = np.zeros((DISPLAY_SIZE*2, DISPLAY_SIZE*2), dtype="uint8")
 
-display_images(im1, im2, im3, im4)
+        image[DISPLAY_SIZE:DISPLAY_SIZE*2, 0:DISPLAY_SIZE] = im1
+        image[DISPLAY_SIZE:DISPLAY_SIZE*2, DISPLAY_SIZE:DISPLAY_SIZE*2] = im2
+        image[0:DISPLAY_SIZE, 0:DISPLAY_SIZE] = im3
+        image[0:DISPLAY_SIZE, DISPLAY_SIZE:DISPLAY_SIZE*2] = im4
 
-cv2.destroyAllWindows()
+        cv2.imshow("image", image)
+        cv2.waitKey(0)
+
+    display_images(im1, im2, im3, im4)
+
+    cv2.destroyAllWindows()
